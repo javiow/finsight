@@ -1,0 +1,70 @@
+# 프로젝트: FinSight
+
+카드 명세서 CSV를 올리면 Claude가 자동 분류하고 지출 인사이트를 돌려주는 개인용 가계부 SaaS.
+**포트폴리오/데모**다 — Polar 샌드박스만 쓰고 실제 정산은 없다.
+
+전체 설계는 `docs/`에 있다. 상세가 필요하면 해당 문서의 해당 절을 읽어라.
+
+- `docs/PRD.md` — 사용자 · 핵심 기능 · 요금제 · 프라이버시 약속
+- `docs/ARCHITECTURE.md` — 디렉토리 구조 · 데이터 흐름 · LLM 전송 경계
+- `docs/ADR.md` — 설계 결정과 트레이드오프
+- `docs/DESIGN.md` — `design/` 프로토타입 파일 지도 · 화면→라우트 매핑 · 이식 방침
+
+## 기술 스택
+- Next.js 15 App Router
+- TypeScript strict mode
+- Tailwind CSS + shadcn/ui (복사 붙여넣기, 벤더 종속 없음)
+- Supabase — Auth · Postgres · Storage · RLS
+- Anthropic Claude API (`claude-opus-5`) — 제품 기능(분류·인사이트)용 모델
+- Polar (`@polar-sh/nextjs`) — 구독 결제, 샌드박스 환경
+- Recharts — 차트
+- Vitest — 테스트
+- 배포: Vercel Pro (상용). Hobby는 개인·비상업 개발용으로만 쓴다
+- **다크 모드 고정.** 테마 토글 라이브러리를 넣지 않는다 (`design/finsight-dark.css`가 팔레트 원본)
+
+## 아키텍처 규칙
+
+- CRITICAL: 외부 API 호출(Anthropic, Polar)과 service-role Supabase 접근은 `app/api/` 라우트 핸들러 안에서만 한다. 클라이언트 컴포넌트에서 직접 호출 금지.
+- CRITICAL: 브라우저는 사용자 데이터 SELECT만 직접 수행한다. 모든 insert/update/delete는 `app/api/` service-role 핸들러를 거치며, 이 규칙은 DB 권한(`authenticated` 역할에서 revoke)과 RLS로 강제한다.
+- CRITICAL: 사용자 요청 API는 middleware와 별개로 자체 세션 검증을 수행한다. Polar webhook은 raw body 서명 검증, Vercel cron은 `CRON_SECRET` 검증으로 인증한다.
+- CRITICAL: 원본 CSV와 식별정보를 외부 모델에 보내지 않는다. LLM에는 비식별화된 미리보기·가맹점명·집계 숫자만 목적별로 보낸다 (`docs/ARCHITECTURE.md` "LLM 전송 경계").
+- CRITICAL: 플랜 게이팅은 서버에서만 판정한다. 클라이언트 조건부 렌더는 UI일 뿐이고 차단은 `src/lib/plan.ts`의 `requirePro`가 한다.
+- 단순 조회는 Server Component에서 `@supabase/ssr` 서버 클라이언트로 직접 수행한다. 접근 제어는 RLS가 담당한다.
+- service-role 클라이언트는 `src/lib/supabase/service.ts` 한 곳에만 두고 파일 최상단에 `import 'server-only'`를 둔다.
+- 컴포넌트는 `src/components/`, 타입은 `src/types/`, 유틸은 `src/lib/`, 외부 API 래퍼는 `src/services/`에 둔다.
+- AI 모델 ID는 `src/services/claude.ts`의 상수 하나로 관리한다. 호출부에 모델 문자열을 흩뿌리지 않는다.
+- LLM 결과는 캐싱한다 — 카테고리는 (유저, 가맹점명), 인사이트는 (유저, 기간). 같은 입력에 재호출하면 API 비용이 그대로 중복된다. 매핑은 캐시하지 않는다(명세서당 1회라 값어치가 없다).
+
+## 개발 프로세스
+- CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD)
+- **TDD Guard 훅이 실제로 차단한다** (`scripts/hooks/tdd-guard.sh`, `.codex/hooks.json`의 `PreToolUse`). 대응하는 테스트 파일이 없으면 구현 파일 작성이 거부된다.
+  - 훅은 `apply_patch` 패치 헤더(`*** Add File:` / `*** Update File:`)와 `shell` heredoc, `file_path` 필드를 모두 훑는다. 툴을 바꿔서 우회할 수 없다.
+  - 면제: 파일명이 `*.test.*` / `*.spec.*`, `tests/` · `__tests__/` 디렉토리, `types/` 하위, `design/` 하위, `*.json`/`*.css`/`*.md`/`*.yml`/`*.env*`/`*.config.*`, Next.js 프레임워크 파일(`layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `globals.css`)
+  - **`app/api/*/route.ts`는 면제 대상이 아니다.** API 라우트도 테스트를 먼저 작성해야 한다.
+  - SQL migration은 `.sql`이라 훅을 타지 않지만, RLS 정책은 별도로 검증할 것.
+- **위험 명령 훅**(`scripts/hooks/shell-guard.sh`)이 `rm -rf` · `git push --force` · `git reset --hard` · `DROP TABLE`을 차단한다. 되돌리기 어려운 작업은 사용자에게 확인을 받아라.
+- CRITICAL: `src/types/api.ts`의 요청·응답 타입과 에러 코드가 API 계약의 유일한 출처다. 새 필드명을 지어내지 말고 이 파일을 먼저 읽어라.
+- **세션 종료 시 `npm run lint && npm run build && npm run test`가 자동 실행된다** (`Stop` 훅). 세 개 모두 통과하는 상태로 작업을 마칠 것.
+- 실패는 격리하고 진행은 보존한다. 행 하나가 깨져 명세서 전체를 실패시키거나, 배치 하나가 실패해 앞선 배치를 날리지 않는다.
+- 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
+
+## Harness
+
+`scripts/execute.py`가 `phases/{task}/step{N}.md`를 순서대로 `codex exec`에 넘겨 실행한다.
+이 파일(AGENTS.md)과 `docs/*.md`가 매 step 프롬프트에 가드레일로 주입된다 — 규칙을 여기에 적으면 모든 step이 본다.
+
+```
+python scripts/execute.py {task-name}          # 순차 실행
+python scripts/execute.py {task-name} --push   # 실행 후 push
+```
+
+훅은 첫 실행 때 한 번 신뢰(trust)해야 동작한다. `codex`를 인터랙티브로 한 번 띄워 `.codex/hooks.json`을 승인하라.
+
+## 명령어
+```
+npm run dev      # 개발 서버
+npm run build    # 프로덕션 빌드
+npm run lint     # ESLint
+npm run test     # 테스트
+python -m pytest scripts/   # harness · 훅 테스트
+```
