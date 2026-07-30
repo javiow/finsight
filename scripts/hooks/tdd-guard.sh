@@ -25,6 +25,13 @@ case "$FILE_PATH" in
     ;;
 esac
 
+# design/ 폴더의 디자인 프로토타입 산출물은 테스트 불필요 — 허용
+case "$FILE_PATH" in
+  *[/\\]design[/\\]*)
+    exit 0
+    ;;
+esac
+
 # types/ 폴더는 테스트 불필요 — 허용
 case "$FILE_PATH" in
   */types/*|*/types.ts|*/types.d.ts)

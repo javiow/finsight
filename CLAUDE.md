@@ -38,7 +38,7 @@
 ## 개발 프로세스
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD)
 - **TDD Guard 훅이 실제로 차단한다** (`scripts/hooks/tdd-guard.sh` — `PreToolUse[Write|Edit]`). 대응하는 테스트 파일이 없으면 구현 파일 작성이 거부된다.
-  - 면제: `*.test.*` / `*.spec.*` / `__tests__`, `types/` 하위, `*.json`/`*.css`/`*.md`/`*.yml`/`*.env*`/`*.config.*`, Next.js 프레임워크 파일(`layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `globals.css`)
+  - 면제: `*.test.*` / `*.spec.*` / `__tests__`, `types/` 하위, `design/` 하위, `*.json`/`*.css`/`*.md`/`*.yml`/`*.env*`/`*.config.*`, Next.js 프레임워크 파일(`layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `globals.css`)
   - **`app/api/*/route.ts`는 면제 대상이 아니다.** API 라우트도 테스트를 먼저 작성해야 한다.
   - SQL migration은 `.sql`이라 훅을 타지 않지만, RLS 정책은 별도로 검증할 것.
 - CRITICAL: `src/types/api.ts`의 요청·응답 타입과 에러 코드가 API 계약의 유일한 출처다. 새 필드명을 지어내지 말고 이 파일을 먼저 읽어라.
