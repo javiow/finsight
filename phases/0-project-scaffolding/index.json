@@ -1,0 +1,12 @@
+{
+  "project": "FinSight",
+  "phase": "0-project-scaffolding",
+  "steps": [
+    { "step": 0, "name": "next-init", "status": "pending" },
+    { "step": 1, "name": "design-tokens", "status": "pending" },
+    { "step": 2, "name": "shadcn-ui", "status": "pending" },
+    { "step": 3, "name": "supabase-clients", "status": "pending" },
+    { "step": 4, "name": "db-schema", "status": "pending" },
+    { "step": 5, "name": "api-contract-types", "status": "pending" }
+  ]
+}
