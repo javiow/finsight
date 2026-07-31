@@ -5,12 +5,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/hooks/shell-guard.sh",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/shell-guard.sh\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"& 'C:\\Program Files\\Git\\bin\\bash.exe' (Join-Path (git rev-parse --show-toplevel) 'scripts/hooks/shell-guard.sh')\"",
+            "timeout": 10,
             "statusMessage": "위험 명령 검사"
           },
           {
             "type": "command",
-            "command": "bash scripts/hooks/tdd-guard.sh",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/tdd-guard.sh\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"& 'C:\\Program Files\\Git\\bin\\bash.exe' (Join-Path (git rev-parse --show-toplevel) 'scripts/hooks/tdd-guard.sh')\"",
+            "timeout": 10,
             "statusMessage": "TDD Guard"
           }
         ]
