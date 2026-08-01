@@ -9,6 +9,8 @@
 - `docs/ARCHITECTURE.md` — 디렉토리 구조 · 데이터 흐름 · LLM 전송 경계
 - `docs/ADR.md` — 설계 결정과 트레이드오프
 - `docs/DESIGN.md` — `design/` 프로토타입 파일 지도 · 화면→라우트 매핑 · 이식 방침
+- `docs/UX.md` — UI 원칙(Figma 7원칙) · 유저 유치·온보딩 퍼널 · 화면별 체크리스트
+- `docs/QA_SCENARIOS.md` — 브라우저 테스팅 시나리오 체크리스트. 브라우저로 화면을 확인할 때마다 먼저 읽는다
 
 ## 기술 스택
 - Next.js 15 App Router
