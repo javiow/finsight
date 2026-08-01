@@ -158,6 +158,8 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* 한국어 전용 서비스: 줄바꿈이 어절 중간(예: "이번"→"이"+"번")에서 일어나지 않도록 한다. */
+  word-break: keep-all;
 }
 
 ::selection {
