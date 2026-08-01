@@ -1,3 +1,9 @@
+import { Button } from "@/components/ui/button";
+
 export default function Home() {
-  return <main>FinSight</main>;
+  return (
+    <main>
+      <Button>FinSight</Button>
+    </main>
+  );
 }
