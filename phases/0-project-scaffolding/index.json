@@ -37,7 +37,10 @@
     {
       "step": 4,
       "name": "db-schema",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-08-01T09:24:03+0900",
+      "summary": "Added the five-table Supabase schema with per-user SELECT RLS policies and authenticated DML revocations.",
+      "completed_at": "2026-08-01T09:26:19+09:00"
     },
     {
       "step": 5,
