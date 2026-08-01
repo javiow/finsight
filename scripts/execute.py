@@ -22,6 +22,18 @@ from typing import Optional
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _configure_utf8_console():
+    """Windows 콘솔 기본 코드페이지(cp949 등)는 —/✓/↻ 같은 출력 문자를 인코딩하지 못해
+    print() 호출 시 UnicodeEncodeError로 죽는다. stdout/stderr를 UTF-8로 강제한다."""
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 @contextlib.contextmanager
 def progress_indicator(label: str):
     """터미널 진행 표시기. with 문으로 사용하며 .elapsed 로 경과 시간을 읽는다."""
@@ -411,6 +423,7 @@ class StepExecutor:
 
 
 def main():
+    _configure_utf8_console()
     parser = argparse.ArgumentParser(description="Harness Step Executor")
     parser.add_argument("phase_dir", help="Phase directory name (e.g. 0-mvp)")
     parser.add_argument("--push", action="store_true", help="Push branch after completion")

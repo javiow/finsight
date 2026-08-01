@@ -473,6 +473,34 @@ class TestInvokeCodex:
 
 
 # ---------------------------------------------------------------------------
+# _configure_utf8_console
+# ---------------------------------------------------------------------------
+
+class TestConfigureUtf8Console:
+    def test_reconfigures_on_windows(self):
+        mock_stdout = MagicMock()
+        mock_stderr = MagicMock()
+        with patch.object(sys, "platform", "win32"), \
+             patch.object(sys, "stdout", mock_stdout), \
+             patch.object(sys, "stderr", mock_stderr):
+            ex._configure_utf8_console()
+        mock_stdout.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+        mock_stderr.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+
+    def test_noop_on_non_windows(self):
+        mock_stdout = MagicMock()
+        with patch.object(sys, "platform", "linux"), patch.object(sys, "stdout", mock_stdout):
+            ex._configure_utf8_console()
+        mock_stdout.reconfigure.assert_not_called()
+
+    def test_swallows_reconfigure_errors(self):
+        mock_stdout = MagicMock()
+        mock_stdout.reconfigure.side_effect = AttributeError()
+        with patch.object(sys, "platform", "win32"), patch.object(sys, "stdout", mock_stdout):
+            ex._configure_utf8_console()  # should not raise
+
+
+# ---------------------------------------------------------------------------
 # progress_indicator (= 이전 Spinner)
 # ---------------------------------------------------------------------------
 
