@@ -27,7 +27,6 @@
   --near-black: #12131a;
 
   /* FinSight's fixed dark palette. */
-  --accent: #3ecf8e;
   --finsight-accent: #3ecf8e;
   --color-primary: var(--finsight-accent);
   --color-primary-hover: color-mix(in oklch, var(--finsight-accent) 82%, white);
