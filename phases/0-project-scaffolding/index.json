@@ -7,12 +7,16 @@
       "name": "next-init",
       "status": "completed",
       "started_at": "2026-08-01T08:56:16+0900",
-      "summary": "Next.js 15 App Router·strict TypeScript·ESLint·Vitest 골격과 아키텍처 디렉터리를 루트에 초기화했다."
+      "summary": "Next.js 15 App Router·strict TypeScript·ESLint·Vitest 골격과 아키텍처 디렉터리를 루트에 초기화했다.",
+      "completed_at": "2026-08-01T09:03:08+0900"
     },
     {
       "step": 1,
       "name": "design-tokens",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-08-01T09:05:24+0900",
+      "summary": "Tailwind CSS v4, fixed dark design tokens, shadcn aliases, and Next fonts were configured.",
+      "completed_at": "2026-08-01T09:10:04+09:00"
     },
     {
       "step": 2,

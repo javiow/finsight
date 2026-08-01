@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Design-system color tokens. */
+  --blue-50: #eaf0ff;
+  --blue-100: #d3e0ff;
+  --blue-200: #a9c2ff;
+  --blue-500: #1450ff;
+  --blue-600: #0f3fd6;
+  --blue-700: #0c33a6;
+  --slate-900: #14171f;
+  --slate-700: #2c303b;
+  --slate-600: #4a5062;
+  --slate-400: #8a8f9e;
+  --slate-300: #c4c8d2;
+  --slate-200: #e4e7ee;
+  --slate-100: #eef1f6;
+  --slate-50: #f7f8fb;
+  --green-600: #0f9a4a;
+  --red-600: #e5484d;
+  --amber-500: #f5a524;
+  --white: #ffffff;
+  --near-black: #12131a;
+
+  /* FinSight's fixed dark palette. */
+  --accent: #3ecf8e;
+  --finsight-accent: #3ecf8e;
+  --color-primary: var(--finsight-accent);
+  --color-primary-hover: color-mix(in oklch, var(--finsight-accent) 82%, white);
+  --color-primary-active: color-mix(in oklch, var(--finsight-accent) 78%, black);
+  --color-primary-soft: color-mix(in oklch, var(--finsight-accent) 16%, #171a20);
+  --color-primary-disabled: color-mix(in oklch, var(--finsight-accent) 32%, #171a20);
+  --color-canvas: #171a20;
+  --color-surface-soft: #0e1014;
+  --color-surface-strong: #232833;
+  --color-surface-dark: #0a0b0e;
+  --color-hairline: #282e39;
+  --color-hairline-soft: #20242d;
+  --color-ink: #f1f3f8;
+  --color-body: #a7aebd;
+  --color-body-strong: #f1f3f8;
+  --color-muted: #727a8b;
+  --color-muted-soft: #3b4250;
+  --color-on-primary: #ffffff;
+  --color-on-dark: var(--white);
+  --color-on-dark-soft: var(--slate-300);
+  --color-success: #3ecf8e;
+  --color-danger: #ff6f6f;
+  --color-warning: #f5b642;
+
+  /* Typography tokens. next/font variables are attached to <html> in layout.tsx. */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --text-display-lg: 700 40px/1.1 var(--font-sans);
+  --tracking-display-lg: -0.02em;
+  --text-display-md: 700 32px/1.15 var(--font-sans);
+  --tracking-display-md: -0.015em;
+  --text-title-lg: 600 24px/1.25 var(--font-sans);
+  --text-title-md: 600 18px/1.3 var(--font-sans);
+  --text-title-sm: 600 15px/1.35 var(--font-sans);
+  --text-body-lg: 400 16px/1.55 var(--font-sans);
+  --text-body-md: 400 14px/1.55 var(--font-sans);
+  --text-body-sm: 400 13px/1.5 var(--font-sans);
+  --text-caption: 500 12px/1.4 var(--font-sans);
+  --text-button: 600 14px/1 var(--font-sans);
+  --text-number-lg: 700 28px/1.2 var(--font-mono);
+  --text-number-md: 600 18px/1.3 var(--font-mono);
+  --text-number-sm: 500 13px/1.3 var(--font-mono);
+
+  /* Spacing, shape, and elevation tokens. */
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-base: 16px;
+  --space-md: 20px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  --space-section: 64px;
+  --content-max: 1200px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --shadow-focus: 0 0 0 3px color-mix(in oklch, var(--finsight-accent) 35%, transparent);
+
+  /* shadcn/ui variables. Its --accent is a hover surface, not FinSight's point color. */
+  --background: var(--color-surface-soft);
+  --foreground: var(--color-ink);
+  --card: var(--color-surface-strong);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-surface-strong);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-on-primary);
+  --secondary: var(--color-surface-strong);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-muted-soft);
+  --muted-foreground: var(--color-muted);
+  --accent: var(--color-primary-soft);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-danger);
+  --border: var(--color-hairline);
+  --input: var(--color-hairline-soft);
+  --ring: var(--color-primary);
+  --radius: var(--radius-md);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  padding: 0;
+}
+
+body {
+  background: var(--color-surface-soft);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--finsight-accent) 35%, transparent);
+}
