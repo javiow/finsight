@@ -14,6 +14,7 @@ const config = [
       "build/**",
       "design/**",
       "next-env.d.ts",
+      ".claude/**",
     ],
   },
 ];
