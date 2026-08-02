@@ -8,8 +8,9 @@ import {
   type InsightItem,
   type InsightsResponse,
   type UpdateTransactionRequest,
+  type UpdateTransactionResponse,
 } from "./api";
-import type { Category } from "./database";
+import type { Category, Transaction } from "./database";
 
 describe("API contract types", () => {
   it("uses the twelve categories defined by the database schema", () => {
@@ -48,6 +49,10 @@ describe("API contract types", () => {
     expectTypeOf<UpdateTransactionRequest>().toEqualTypeOf<{
       category: Category;
     }>();
+  });
+
+  it("returns the updated transaction row from PATCH /api/transactions/:id", () => {
+    expectTypeOf<UpdateTransactionResponse>().toEqualTypeOf<Transaction>();
   });
 
   it("keeps a category and period reference on every insight response item", () => {

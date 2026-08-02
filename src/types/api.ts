@@ -1,4 +1,4 @@
-import type { Category } from "./database";
+import type { Category, Transaction } from "./database";
 
 export type CreateStatementRequest = FormData;
 
@@ -17,6 +17,8 @@ export interface ClassifyStatementResponse {
 export interface UpdateTransactionRequest {
   category: Category;
 }
+
+export type UpdateTransactionResponse = Transaction;
 
 export interface InsightItem {
   category: Category;
