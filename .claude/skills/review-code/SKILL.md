@@ -90,6 +90,40 @@ findings가 하나도 없으면 이 레이어는 생략하고 바로 레이어 2
 2. `critical` = 0이고 `major` ≥ 1개 → `Changes Requested`
 3. 둘 다 0 → `Approve` (minor/nit는 참고용, 판정에 영향 없음)
 
+## 6. GitHub PR에 게시하기 (선택, 명시적으로 요청받았을 때만)
+
+사용자가 "PR에 올려줘", "인라인 코멘트로 게시해줘"처럼 **실제 GitHub PR에 리뷰를 남기라고 명시적으로 요청한 경우에만** 이 단계를 수행한다. 기본 동작(그냥 `/review-code`)은 항상 5번까지만 하고 채팅으로 리포트를 보여준다 — PR에 뭔가를 쓰는 건 다른 사람에게 보이는 행동이므로 명시적 요청 없이는 하지 않는다.
+
+### 6-1. 대상 PR과 commit 확정
+
+- 사용자가 PR 번호/URL을 줬으면 그걸 쓴다.
+- 안 줬으면 현재 브랜치 기준 `gh pr view --json number,headRefOid,url`로 연결된 PR을 찾는다. 없으면 사용자에게 PR 번호를 물어본다(추측해서 만들지 않는다).
+- `headRefOid`가 리뷰 커밋(`commit_id`)이다. 리뷰 스코프로 실제 사용한 diff의 HEAD와 이 값이 같은지 확인해라 — 다르면 리뷰가 오래된 커밋 기준일 수 있으니 사용자에게 알린다.
+
+### 6-2. 페이로드 구성
+
+1~5번에서 만든 두 레이어를 GitHub Reviews API 페이로드로 변환한다:
+
+- 레이어 1(인라인 코멘트) 각 finding → `comments[]`의 원소 하나:
+  ```json
+  { "path": "<FILE>", "line": <LINE 끝줄>, "side": "RIGHT", "body": "<4줄 블록을 마크다운으로>" }
+  ```
+  범위 finding(`LINE`이 `10-15`처럼 범위)은 `start_line`(시작줄)과 `line`(끝줄)을 함께 채운다. `side`는 항상 `RIGHT`(새 코드 기준)로 고정한다 — diff에서 삭제된 줄을 지적하는 경우가 아니면 `LEFT`를 쓸 일이 없다.
+- 레이어 2(PR 요약) → 리뷰의 최상위 `body`.
+- 판정 → `event`:
+  - `Blocked` 또는 `Changes Requested` → `REQUEST_CHANGES`
+  - `Approve` → `APPROVE`
+
+이 JSON을 스크래치 파일로 저장한다(Bash 인자로 직접 넘기지 말 것 — 따옴표/이스케이프가 깨지기 쉽다).
+
+### 6-3. 게시
+
+```
+gh api repos/{owner}/{repo}/pulls/{pr}/reviews --input <payload.json>
+```
+
+성공하면 반환된 리뷰 URL을 사용자에게 알려준다. 실패(예: `line`이 diff에 없는 줄을 가리킴 — GitHub는 diff hunk 밖의 줄에는 코멘트를 거부한다)하면 어떤 finding이 실패했는지 사용자에게 보고하고, 나머지는 게시된 상태로 둘지 롤백할지 물어본다.
+
 ## 확장하기 (지금은 하지 않음)
 
 리뷰 차원을 늘리고 싶으면(예: security/privacy, performance, cross-file consistency, conventions, behavioral correctness, CPU/perf patterns): `.claude/agents/review-<dimension>.md`를 이 3개 에이전트와 같은 형식(같은 출력 스키마, 같은 심각도 기준)으로 하나 추가하고, 위 2번 표에 한 줄만 추가하면 된다. security/privacy 관련 CRITICAL 규칙(LLM 전송 경계, RLS)은 이미 `review-architecture`가 커버하므로 지금은 별도로 쪼개지 않는다.
