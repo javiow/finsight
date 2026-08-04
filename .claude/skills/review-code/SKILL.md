@@ -122,7 +122,11 @@ findings가 하나도 없으면 이 레이어는 생략하고 바로 레이어 2
 gh api repos/{owner}/{repo}/pulls/{pr}/reviews --input <payload.json>
 ```
 
-성공하면 반환된 리뷰 URL을 사용자에게 알려준다. 실패(예: `line`이 diff에 없는 줄을 가리킴 — GitHub는 diff hunk 밖의 줄에는 코멘트를 거부한다)하면 어떤 finding이 실패했는지 사용자에게 보고하고, 나머지는 게시된 상태로 둘지 롤백할지 물어본다.
+성공하면 반환된 리뷰 URL을 사용자에게 알려준다.
+
+**본인이 연 PR인 경우**: GitHub는 `REQUEST_CHANGES`/`APPROVE`를 PR 작성자 본인에게는 거부한다(`422 Unprocessable Entity — "Can not request changes on your own pull request"`). 이 에러를 만나면 `event`를 `COMMENT`로 바꿔 재시도해라 — 코멘트 내용(판정 `Blocked` 등)은 그대로 `body`에 남으므로 정보 손실은 없고, GitHub의 리뷰 상태 뱃지만 `Commented`로 표시된다.
+
+실패(예: `line`이 diff에 없는 줄을 가리킴 — GitHub는 diff hunk 밖의 줄에는 코멘트를 거부한다)하면 어떤 finding이 실패했는지 사용자에게 보고하고, 나머지는 게시된 상태로 둘지 롤백할지 물어본다.
 
 ## 확장하기 (지금은 하지 않음)
 

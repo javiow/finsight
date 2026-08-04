@@ -1,0 +1,10 @@
+#!/bin/bash
+# 가벼운 프리커밋 체크 — staged 파일만 대상으로 lint + TDD Guard.
+# 무거운 LLM 멀티에이전트 리뷰(/review-code)는 GitHub Actions(.github/workflows/review-code.yml)에서 PR 단위로 돈다.
+set -e
+
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.tsx' '*.js' '*.jsx')
+[ -z "$files" ] && exit 0
+
+npx eslint $files
+bash scripts/hooks/tdd-guard.sh $files
