@@ -1,0 +1,39 @@
+name: Review Code
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: review-code-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            /review-code
+
+            이 PR(#${{ github.event.pull_request.number }}, javiow/finsight)을 리뷰해라.
+            diff 스코프는 로컬 브랜치 상태로 자동판단하지 말고 아래 명령을 그대로 써라:
+            git diff origin/${{ github.event.pull_request.base.ref }}...${{ github.event.pull_request.head.sha }}
+
+            리뷰가 끝나면 SKILL.md 6번 단계에 따라 이 PR(#${{ github.event.pull_request.number }})에
+            실제로 인라인 코멘트 + 요약을 게시해라. PR 번호를 이미 알고 있으니 6-1의 gh pr view 조회는 생략해도 된다.
+          claude_args: "--max-turns 30"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
