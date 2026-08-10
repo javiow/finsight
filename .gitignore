@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# lighthouse-optimize 스킬 산출물 (측정 리포트, 재생성 가능)
+/lighthouse-reports/
+
 # next.js
 /.next/
 /out/

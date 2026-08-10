@@ -7,6 +7,7 @@
     "build": "next build",
     "lint": "eslint .",
     "test": "vitest run",
+    "lh": "node scripts/lighthouse-run.mjs",
     "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
@@ -39,9 +40,11 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "chrome-launcher": "^1.2.1",
     "eslint": "9.39.3",
     "eslint-config-next": "15.5.22",
     "jsdom": "^30.0.1",
+    "lighthouse": "^13.4.1",
     "tailwindcss": "^4.3.3",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
