@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import posthog from "posthog-js";
 
 import { InsightsSection } from "./insights-section";
 
@@ -66,5 +67,19 @@ describe("InsightsSection", () => {
     render(<InsightsSection initialInsights={[]} plan="free" />);
 
     expect(screen.getByText(/아직 인사이트를 만들 만한/)).toBeInTheDocument();
+  });
+
+  it("응답이 실패하면 posthog.captureException으로 보고하고 기존 인사이트를 유지한다", async () => {
+    const captureExceptionSpy = vi
+      .spyOn(posthog, "captureException")
+      .mockImplementation(() => undefined);
+    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 500 } as Response);
+
+    render(<InsightsSection initialInsights={twoInsights} plan="pro" />);
+
+    await waitFor(() => expect(captureExceptionSpy).toHaveBeenCalled());
+    expect(screen.getByText("식비가 늘었어요")).toBeInTheDocument();
+
+    captureExceptionSpy.mockRestore();
   });
 });

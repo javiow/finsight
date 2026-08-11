@@ -7,12 +7,14 @@ const {
   getPlanMock,
   createClaudeClientMock,
   generateInsightsMock,
+  reportServerErrorMock,
 } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
   createServerClientMock: vi.fn(),
   getPlanMock: vi.fn(),
   createClaudeClientMock: vi.fn(),
   generateInsightsMock: vi.fn(),
+  reportServerErrorMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -23,6 +25,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/plan", () => ({
   getPlan: getPlanMock,
+}));
+
+vi.mock("@/lib/posthog/server", () => ({
+  reportServerError: reportServerErrorMock,
 }));
 
 vi.mock("@/services/claude", async (importOriginal) => {
@@ -219,5 +225,21 @@ describe("POST /api/insights", () => {
     expect(state.upserts[0]).toEqual([
       expect.objectContaining({ user_id: "user-1", period: "2026-01", category: "식비" }),
     ]);
+  });
+
+  it("generateInsights가 예상치 못하게 실패하면 500을 반환하고 reportServerError로 보고한다", async () => {
+    vi.mocked(createServiceClient).mockReturnValue(createServiceClientMock().client as never);
+    const unexpected = new Error("claude timeout");
+    generateInsightsMock.mockRejectedValue(unexpected);
+
+    const response = await callRoute();
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.code).toBe("INTERNAL_SERVER_ERROR");
+    expect(reportServerErrorMock).toHaveBeenCalledWith(
+      unexpected,
+      expect.objectContaining({ route: "POST /api/insights", distinctId: "user-1" }),
+    );
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 
 import {
@@ -38,6 +39,10 @@ export function CategorySelect({
         body: JSON.stringify({ category: nextCategory }),
       });
       if (!response.ok) throw new Error("카테고리 변경에 실패했습니다.");
+      posthog.capture("transaction_category_updated", {
+        previous_category: previous,
+        category: nextCategory,
+      });
       onUpdated?.(nextCategory);
     } catch {
       setValue(previous);

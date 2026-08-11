@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
 
 import { Wordmark } from "@/components/marketing/wordmark";
 import { cn } from "@/lib/utils";
@@ -12,8 +14,23 @@ const NAV_ITEMS = [
   { label: "월별 추이", href: "/trends" },
 ] as const;
 
-export function Sidebar() {
+type SidebarProps = {
+  userId?: string;
+  email?: string;
+  plan?: "free" | "pro";
+};
+
+export function Sidebar({ userId, email, plan }: SidebarProps) {
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (!userId || !plan) return;
+
+    posthog.identify(userId, {
+      ...(email ? { email } : {}),
+      plan,
+    });
+  }, [email, plan, userId]);
 
   return (
     <nav className="flex h-screen w-60 shrink-0 flex-col gap-6 border-r border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-6">

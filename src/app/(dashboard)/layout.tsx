@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="flex min-h-screen bg-[var(--color-surface-soft)]">
-      <Sidebar />
+      <Sidebar userId={user.id} email={user.email} plan={plan} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-end border-b border-[var(--color-hairline)] bg-[var(--color-canvas)] px-8 py-4">
           <Badge variant={plan === "pro" ? "default" : "secondary"}>

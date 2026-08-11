@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import posthog from "posthog-js";
 
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/marketing/wordmark";
@@ -38,6 +39,7 @@ export default function LoginPage() {
   }, []);
 
   async function handleGoogleLogin() {
+    posthog.capture("login_started", { provider: "google" });
     setIsLoading(true);
     setHasError(false);
     const supabase = createClient();

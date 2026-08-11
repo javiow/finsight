@@ -3,6 +3,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
+import posthog from "posthog-js";
 
 import { ProgressBar } from "@/components/dashboard/progress-bar";
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,18 @@ import type { ClassifyStatementResponse, CreateStatementResponse } from "@/types
 
 type Phase = "idle" | "uploading" | "classifying" | "done" | "error";
 
-function errorMessageFrom(body: unknown): string {
-  const message = (body as { message?: string } | null)?.message;
-  return message ?? "업로드에 실패했습니다.";
+class UploadError extends Error {
+  readonly code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+function errorFrom(body: unknown): UploadError {
+  const { message, code } = (body as { message?: string; code?: string } | null) ?? {};
+  return new UploadError(message ?? "업로드에 실패했습니다.", code);
 }
 
 export function UploadWidget({ onComplete }: { onComplete?: () => void }) {
@@ -23,7 +33,8 @@ export function UploadWidget({ onComplete }: { onComplete?: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File): Promise<void> {
-    setPhase("uploading");
+    let currentPhase: Exclude<Phase, "idle" | "done" | "error"> = "uploading";
+    setPhase(currentPhase);
     setErrorMessage(null);
 
     try {
@@ -32,11 +43,12 @@ export function UploadWidget({ onComplete }: { onComplete?: () => void }) {
       const createResponse = await fetch("/api/statements", { method: "POST", body: formData });
       const createBody = await createResponse.json();
       if (!createResponse.ok) {
-        throw new Error(errorMessageFrom(createBody));
+        throw errorFrom(createBody);
       }
 
       const { statementId, pending, total } = createBody as CreateStatementResponse;
-      setPhase("classifying");
+      currentPhase = "classifying";
+      setPhase(currentPhase);
       setProgress({ pending, total });
 
       let remaining = pending;
@@ -46,7 +58,7 @@ export function UploadWidget({ onComplete }: { onComplete?: () => void }) {
         });
         const classifyBody = await classifyResponse.json();
         if (!classifyResponse.ok) {
-          throw new Error(errorMessageFrom(classifyBody));
+          throw errorFrom(classifyBody);
         }
 
         const data = classifyBody as ClassifyStatementResponse;
@@ -55,9 +67,14 @@ export function UploadWidget({ onComplete }: { onComplete?: () => void }) {
       }
 
       setPhase("done");
+      posthog.capture("statement_upload_completed", { transaction_count: total });
       router.refresh();
       onComplete?.();
     } catch (error) {
+      posthog.capture("statement_upload_failed", {
+        phase: currentPhase,
+        code: error instanceof UploadError ? error.code : undefined,
+      });
       setPhase("error");
       setErrorMessage(error instanceof Error ? error.message : "업로드에 실패했습니다.");
     }

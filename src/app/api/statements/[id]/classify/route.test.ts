@@ -7,17 +7,23 @@ const {
   createServerClientMock,
   createClaudeClientMock,
   classifyMerchantsMock,
+  reportServerErrorMock,
 } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
   createServerClientMock: vi.fn(),
   createClaudeClientMock: vi.fn(),
   classifyMerchantsMock: vi.fn(),
+  reportServerErrorMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: createServerClientMock,
+}));
+
+vi.mock("@/lib/posthog/server", () => ({
+  reportServerError: reportServerErrorMock,
 }));
 
 vi.mock("@/services/claude", async (importOriginal) => {
@@ -299,5 +305,31 @@ describe("POST /api/statements/[id]/classify", () => {
     expect(classifyMerchantsMock).not.toHaveBeenCalled();
     const body = await response.json();
     expect(body).toEqual({ pending: 0, total: 5 });
+  });
+
+  it("classifyMerchants가 예상치 못하게 실패하면 500을 반환하고 reportServerError로 보고한다", async () => {
+    const { client } = createServiceClientMock({
+      pendingMerchants: ["신규가맹점"],
+      cached: [],
+      pendingCountAfter: 1,
+      totalCount: 1,
+    });
+    vi.mocked(createServiceClient).mockReturnValue(client as never);
+    const unexpected = new Error("claude timeout");
+    classifyMerchantsMock.mockRejectedValue(unexpected);
+
+    const response = await callRoute();
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.code).toBe("INTERNAL_SERVER_ERROR");
+    expect(reportServerErrorMock).toHaveBeenCalledWith(
+      unexpected,
+      expect.objectContaining({
+        route: "POST /api/statements/[id]/classify",
+        distinctId: "user-1",
+        properties: expect.objectContaining({ statementId: "stmt-1" }),
+      }),
+    );
   });
 });

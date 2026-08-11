@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { ApiError, errorResponse } from "@/lib/api-error";
 import { normalizeMerchantName } from "@/lib/merchant";
+import { reportServerError } from "@/lib/posthog/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { classifyMerchants, createClaudeClient } from "@/services/claude";
@@ -14,8 +15,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
+  let statementId: string | undefined;
+  let userId: string | undefined;
   try {
-    const { id: statementId } = await params;
+    ({ id: statementId } = await params);
 
     const supabase = await createClient();
     const {
@@ -24,6 +27,7 @@ export async function POST(
     if (!user) {
       throw new ApiError(ApiErrorCode.UNAUTHORIZED, 401);
     }
+    userId = user.id;
 
     const service = createServiceClient();
 
@@ -125,6 +129,11 @@ export async function POST(
     return NextResponse.json(body, { status: 200 });
   } catch (error) {
     if (error instanceof ApiError) return errorResponse(error);
+    await reportServerError(error, {
+      route: "POST /api/statements/[id]/classify",
+      distinctId: userId,
+      properties: { statementId },
+    });
     return errorResponse(new ApiError(ApiErrorCode.INTERNAL_SERVER_ERROR, 500));
   }
 }

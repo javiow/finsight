@@ -2,9 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { getUserMock, createServerClientMock } = vi.hoisted(() => ({
+const { getUserMock, createServerClientMock, reportServerErrorMock } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
   createServerClientMock: vi.fn(),
+  reportServerErrorMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -13,10 +14,20 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: createServerClientMock,
 }));
 
+vi.mock("@/lib/posthog/server", () => ({
+  reportServerError: reportServerErrorMock,
+}));
+
+vi.mock("@/lib/merchant", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/merchant")>();
+  return { ...actual, normalizeMerchantName: vi.fn(actual.normalizeMerchantName) };
+});
+
 vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: vi.fn(),
 }));
 
+import { normalizeMerchantName } from "@/lib/merchant";
 import { createServiceClient } from "@/lib/supabase/service";
 
 import { PATCH } from "./route";
@@ -148,6 +159,29 @@ describe("PATCH /api/transactions/[id]", () => {
         merchant_name: "CU 편의점",
         category: "생활·마트",
         source: "user",
+      }),
+    );
+  });
+
+  it("예상치 못한 예외가 발생하면 500을 반환하고 reportServerError로 보고한다", async () => {
+    const { client } = createServiceClientMock();
+    vi.mocked(createServiceClient).mockReturnValue(client as never);
+    const unexpected = new Error("normalize crashed");
+    vi.mocked(normalizeMerchantName).mockImplementationOnce(() => {
+      throw unexpected;
+    });
+
+    const response = await callRoute({ category: "생활·마트" });
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.code).toBe("INTERNAL_SERVER_ERROR");
+    expect(reportServerErrorMock).toHaveBeenCalledWith(
+      unexpected,
+      expect.objectContaining({
+        route: "PATCH /api/transactions/[id]",
+        distinctId: "user-1",
+        properties: expect.objectContaining({ transactionId: "txn-1" }),
       }),
     );
   });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { ApiError, errorResponse } from "@/lib/api-error";
 import { getPlan } from "@/lib/plan";
+import { reportServerError } from "@/lib/posthog/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClaudeClient, generateInsights, type CategoryAggregate } from "@/services/claude";
@@ -27,6 +28,7 @@ function prevPeriodKey(period: string): string {
 }
 
 export async function POST(): Promise<NextResponse> {
+  let userId: string | undefined;
   try {
     const supabase = await createClient();
     const {
@@ -35,6 +37,7 @@ export async function POST(): Promise<NextResponse> {
     if (!user) {
       throw new ApiError(ApiErrorCode.UNAUTHORIZED, 401);
     }
+    userId = user.id;
 
     const service = createServiceClient();
 
@@ -144,6 +147,7 @@ export async function POST(): Promise<NextResponse> {
     return NextResponse.json(body, { status: 200 });
   } catch (error) {
     if (error instanceof ApiError) return errorResponse(error);
+    await reportServerError(error, { route: "POST /api/insights", distinctId: userId });
     return errorResponse(new ApiError(ApiErrorCode.INTERNAL_SERVER_ERROR, 500));
   }
 }

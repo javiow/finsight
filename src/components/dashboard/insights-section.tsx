@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import posthog from "posthog-js";
 
 import { InsightItem } from "@/components/dashboard/insight-item";
 import { LockVeil } from "@/components/dashboard/lock-veil";
@@ -19,11 +20,16 @@ export function InsightsSection({
   useEffect(() => {
     let cancelled = false;
     fetch("/api/insights", { method: "POST" })
-      .then((res) => (res.ok ? (res.json() as Promise<InsightsResponse>) : null))
-      .then((data) => {
-        if (!cancelled && data) setInsights(data);
+      .then((res) => {
+        if (!res.ok) throw new Error(`인사이트 응답 실패 (status: ${res.status})`);
+        return res.json() as Promise<InsightsResponse>;
       })
-      .catch(() => {});
+      .then((data) => {
+        if (!cancelled) setInsights(data);
+      })
+      .catch((error: unknown) => {
+        posthog.captureException(error);
+      });
     return () => {
       cancelled = true;
     };

@@ -8,6 +8,7 @@ import { parseCsv } from "@/lib/csv/parse";
 import { buildMaskedPreview } from "@/lib/csv/preview";
 import { parseTransactionRows } from "@/lib/csv/rows";
 import { getPlan } from "@/lib/plan";
+import { reportServerError } from "@/lib/posthog/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ColumnMappingError, createClaudeClient, mapColumns } from "@/services/claude";
@@ -25,6 +26,7 @@ async function failStatement(service: ServiceClient, statementId: string): Promi
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  let userId: string | undefined;
   try {
     const supabase = await createClient();
     const {
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!user) {
       throw new ApiError(ApiErrorCode.UNAUTHORIZED, 401);
     }
+    userId = user.id;
 
     const formData = await request.formData();
     const file = formData.get("file");
@@ -130,6 +133,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(body, { status: 202 });
   } catch (error) {
     if (error instanceof ApiError) return errorResponse(error);
+    await reportServerError(error, { route: "POST /api/statements", distinctId: userId });
     return errorResponse(new ApiError(ApiErrorCode.INTERNAL_SERVER_ERROR, 500));
   }
 }

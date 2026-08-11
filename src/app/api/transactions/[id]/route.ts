@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ApiError, errorResponse } from "@/lib/api-error";
 import { CATEGORIES } from "@/lib/categories";
 import { normalizeMerchantName } from "@/lib/merchant";
+import { reportServerError } from "@/lib/posthog/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ApiErrorCode, type UpdateTransactionResponse } from "@/types/api";
@@ -14,8 +15,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
+  let transactionId: string | undefined;
+  let userId: string | undefined;
   try {
-    const { id: transactionId } = await params;
+    ({ id: transactionId } = await params);
 
     const supabase = await createClient();
     const {
@@ -24,6 +27,7 @@ export async function PATCH(
     if (!user) {
       throw new ApiError(ApiErrorCode.UNAUTHORIZED, 401);
     }
+    userId = user.id;
 
     const parsedBody = requestSchema.safeParse(await request.json());
     if (!parsedBody.success) {
@@ -65,6 +69,11 @@ export async function PATCH(
     return NextResponse.json(body, { status: 200 });
   } catch (error) {
     if (error instanceof ApiError) return errorResponse(error);
+    await reportServerError(error, {
+      route: "PATCH /api/transactions/[id]",
+      distinctId: userId,
+      properties: { transactionId },
+    });
     return errorResponse(new ApiError(ApiErrorCode.INTERNAL_SERVER_ERROR, 500));
   }
 }

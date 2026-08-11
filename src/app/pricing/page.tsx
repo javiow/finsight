@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
+import posthog from "posthog-js";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -83,6 +86,7 @@ function PlanCard({ plan }: { plan: Plan }) {
       </div>
       <Link
         href="/login"
+        onClick={() => posthog.capture("pricing_plan_selected", { plan: plan.name.toLowerCase() })}
         className={cn(
           buttonVariants({ size: "lg", variant: plan.recommended ? "default" : "outline" }),
           "mt-auto h-11 [font:var(--text-body-md)]",

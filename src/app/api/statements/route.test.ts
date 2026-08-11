@@ -2,14 +2,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { getUserMock, createServerClientMock, getPlanMock, createClaudeClientMock, mapColumnsMock } =
-  vi.hoisted(() => ({
-    getUserMock: vi.fn(),
-    createServerClientMock: vi.fn(),
-    getPlanMock: vi.fn(),
-    createClaudeClientMock: vi.fn(),
-    mapColumnsMock: vi.fn(),
-  }));
+const {
+  getUserMock,
+  createServerClientMock,
+  getPlanMock,
+  createClaudeClientMock,
+  mapColumnsMock,
+  reportServerErrorMock,
+} = vi.hoisted(() => ({
+  getUserMock: vi.fn(),
+  createServerClientMock: vi.fn(),
+  getPlanMock: vi.fn(),
+  createClaudeClientMock: vi.fn(),
+  mapColumnsMock: vi.fn(),
+  reportServerErrorMock: vi.fn(),
+}));
 
 vi.mock("server-only", () => ({}));
 
@@ -19,6 +26,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/plan", () => ({
   getPlan: getPlanMock,
+}));
+
+vi.mock("@/lib/posthog/server", () => ({
+  reportServerError: reportServerErrorMock,
 }));
 
 vi.mock("@/services/claude", async (importOriginal) => {
@@ -295,5 +306,23 @@ describe("POST /api/statements", () => {
     expect(response.status).toBe(422);
     const body = await response.json();
     expect(body.code).toBe("COLUMN_MAPPING_FAILED");
+  });
+
+  it("예상치 못한 예외가 발생하면 500을 반환하고 reportServerError로 보고한다", async () => {
+    vi.mocked(createServiceClient).mockReturnValue(
+      createServiceClientMock().client as never,
+    );
+    const unexpected = new Error("db connection lost");
+    getPlanMock.mockRejectedValue(unexpected);
+
+    const response = await POST(buildRequest(VALID_CSV));
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.code).toBe("INTERNAL_SERVER_ERROR");
+    expect(reportServerErrorMock).toHaveBeenCalledWith(
+      unexpected,
+      expect.objectContaining({ route: "POST /api/statements", distinctId: "user-1" }),
+    );
   });
 });
