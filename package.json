@@ -7,6 +7,9 @@
     "build": "next build",
     "lint": "eslint .",
     "test": "vitest run",
+    "eval": "node evals/harness/run.ts",
+    "eval:review": "node evals/harness/run.ts review",
+    "eval:qa": "node evals/harness/run.ts qa",
     "lh": "node scripts/lighthouse-run.mjs",
     "prepare": "git config core.hooksPath .githooks"
   },

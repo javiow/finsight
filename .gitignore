@@ -16,6 +16,9 @@
 # lighthouse-optimize 스킬 산출물 (측정 리포트, 재생성 가능)
 /lighthouse-reports/
 
+# eval harness 실행 산출물 (npm run eval 결과 스냅샷, 재생성 가능)
+/evals/harness/results/
+
 # next.js
 /.next/
 /out/
