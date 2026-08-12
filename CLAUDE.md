@@ -48,6 +48,11 @@
 - 실패는 격리하고 진행은 보존한다. 행 하나가 깨져 명세서 전체를 실패시키거나, 배치 하나가 실패해 앞선 배치를 날리지 않는다.
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 
+## CI 실패 자동 수정 (온콜)
+- `.github/workflows/ci.yml`(lint/build/test)이 실패하면 `.github/workflows/oncall-ci-fix.yml`이 `workflow_run`으로 깨어나 `.claude/skills/oncall-fix`를 호출한다. 트리거는 CI 실패 자체이지 사람의 요청이 아니다.
+- 이 에이전트는 실패한 job 로그만 읽고, `oncall/` 브랜치에 최소 수정을 커밋해 PR을 연다. **master 직접 push·자동 머지 경로는 없다** — 항상 사람이 PR을 리뷰·머지한다.
+- 설계와 루프·시크릿 방지 근거는 `docs/ADR.md` ADR-012 참고.
+
 ## 명령어
 ```
 npm run dev      # 개발 서버

@@ -1,0 +1,60 @@
+name: Oncall CI Auto-Fix
+
+# 사람이 시키는 게 아니라 CI(ci.yml)가 실패했다는 시스템 이벤트 자체가 트리거다.
+# 이 워크플로우는 절대 master에 직접 push하거나 PR을 자동 머지하지 않는다 —
+# 유일한 산출물은 사람이 리뷰해야 하는 PR이다. 상세 설계는 docs/ADR.md ADR-012 참고.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: oncall-ci-fix-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    # 1) CI가 실제로 실패했을 때만
+    # 2) 포크가 트리거한 실패는 스킵한다 — workflow_run은 base repo 컨텍스트(시크릿 포함)로 돌기
+    #    때문에, 포크의 코드를 체크아웃해 시크릿과 함께 실행하는 것 자체가 위험하다.
+    # 3) 봇 자신의 수정 브랜치(oncall/*)가 다시 실패해 스스로를 무한히 고치려 드는 것을 막는다.
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      !startsWith(github.event.workflow_run.head_branch, 'oncall/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: git identity 설정 (커밋용)
+        run: |
+          git config user.name "finsight-oncall-bot"
+          git config user.email "oncall-bot@users.noreply.github.com"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            /oncall-fix
+
+            javiow/finsight 저장소의 CI 실패를 조사하고 고쳐라. 아래는 이번 실패 run의 컨텍스트다:
+
+            - workflow run id: ${{ github.event.workflow_run.id }}
+            - run URL: ${{ github.event.workflow_run.html_url }}
+            - 실패 커밋(head_sha): ${{ github.event.workflow_run.head_sha }}
+            - 실패 브랜치(head_branch): ${{ github.event.workflow_run.head_branch }}
+            - 트리거 이벤트: ${{ github.event.workflow_run.event }}
+            - 연관 PR 목록(JSON, 비어있을 수 있음): ${{ toJSON(github.event.workflow_run.pull_requests) }}
+
+            SKILL.md 순서대로 진행해라. 이미 이 run에 대한 oncall PR이 열려 있으면 새로 만들지 마라.
+          claude_args: "--max-turns 50"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
