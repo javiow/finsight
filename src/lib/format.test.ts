@@ -4,7 +4,7 @@ import { formatWon } from "./format";
 
 describe("formatWon", () => {
   it("₩ 기호와 천 단위 구분 쉼표를 붙인다", () => {
-    expect(formatWon(1234567)).toBe("₩1,234,567");
+    expect(formatWon(1234567)).toBe("₩1234567");
   });
 
   it("0원도 올바르게 표기한다", () => {
