@@ -1,0 +1,45 @@
+name: Oncall Alert Triage
+
+# PostHog 에러 트래킹 웹훅(app/api/webhooks/posthog-alert)이 event_id를 선삽입하고
+# repository_dispatch로 이 워크플로우를 깨운다. 서버리스는 시크릿 검증·멱등·위임까지만
+# 하고, 실제 노이즈/신호 판정과 분석은 여기 헤드리스 Claude가 한다.
+# 상세 설계는 docs/ADR.md ADR-014 참고.
+on:
+  repository_dispatch:
+    types: [posthog-alert]
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            /oncall-alert-triage
+
+            javiow/finsight 저장소의 prod 알림을 분류하라. PostHog 웹훅이 아래 alert로 이 워크플로우를 깨웠다:
+
+            - event_id: ${{ github.event.client_payload.event_id }}
+            - alert_kind: ${{ github.event.client_payload.alert_kind }}
+            - issue_id: ${{ github.event.client_payload.issue_id }}
+            - alert_id: ${{ github.event.client_payload.alert_id }}
+            - title: ${{ github.event.client_payload.title }}
+            - url: ${{ github.event.client_payload.url }}
+            - occurred_at: ${{ github.event.client_payload.occurred_at }}
+
+            SKILL.md 순서대로 진행해라.
+          claude_args: "--max-turns 30"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}

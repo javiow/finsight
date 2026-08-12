@@ -89,3 +89,19 @@
 **결정**: 유저 문의·에러 응대와 내부 팀 시스템 질문을 스킬 하나(`.claude/skills/oncall-autopilot`)로 처리한다. 근거 소스는 코드베이스(Read/Grep), PostHog 로그·에러 트래킹(`mcp__posthog__exec`), Supabase read-only DB(`mcp__supabase__*`) 세 가지뿐이고, 답변의 모든 문장은 이 중 하나로 뒷받침돼야 한다 — 뒷받침이 없으면 "확인 필요"로 남기고 지어내지 않는다. 유저에게 나가는 답변은 인앱 고객지원 챗 톤의 "DRAFT — 사람 승인 필요"로만 산출되며 스킬이 스스로 발송·게시하는 경로는 없다. 내부 팀 질문은 승인 게이트 없이 터미널에서 바로 답한다. 상시 입구(웹훅, 챗봇 연동 등)는 이번 범위에서 뺐다 — 지금은 사람이 직접 호출하는 로컬 one-shot 시연이다.
 **이유**: 온콜 Q&A의 실패 모드는 "그럴듯하지만 틀린 답"이다 — 특히 유저에게 직접 나가는 문장은 틀리면 CI 자동 수정 PR(ADR-012)보다 되돌리기 어렵다(이미 유저가 읽었으므로). 소스 인용을 강제하면 사람 리뷰어가 각 문장을 검증할 수 있고, DB를 read-only로 못박으면 "그냥 구독을 풀어주면 되는데"류의 편의적 쓰기가 스며들 여지가 없다. 오디언스(유저용 vs 내부용)에 따라 승인 요구사항이 다르므로 하나의 스킬 안에서 분기하되 출력 형식은 분리했다.
 **트레이드오프**: draft에 항상 "사람 승인" 문구가 붙으므로 완전 자동 응대는 아니다 — 속도보다 정확성을 우선한 선택이다. 상시 입구가 없어 실제 에러 발생 시점에 자동으로 깨어나지 않는다; PostHog 알림이나 웹훅으로 트리거하는 always-on 버전은 이 스킬이 안정화된 뒤 별도 설계한다.
+
+### ADR-014: prod alert 1차 방어선 — 서버리스는 검증·멱등·위임만, 판정은 CI 헤드리스가 한다
+
+**결정**: PostHog 에러 트래킹 웹훅(단건 alert + 급증 alert)을 받는 `POST /api/webhooks/posthog-alert`는 세 가지만 한다 — (1) `X-Webhook-Secret` 헤더를 상수시간 비교로 검증, (2) `oncall_alert_events`(신규 테이블)에 `event_id`를 먼저 삽입해 멱등을 확보, (3) GitHub `repository_dispatch`(`posthog-alert`)로 CI를 깨운다. 노이즈/신호 판정과 분석·에스컬레이션은 전부 `.github/workflows/oncall-alert-triage.yml` → `.claude/skills/oncall-alert-triage`(헤드리스 Claude)가 한다.
+
+**이유**: Vercel 서버리스 함수는 `claude -p`를 띄울 수 없으므로 판정 로직을 어차피 어딘가로 위임해야 한다. 위임할 거라면 웹훅 핸들러는 얇게 유지하는 게 맞다 — PostHog 웹훅은 응답 지연에 민감하고, "노이즈/신호 판정"처럼 LLM 추론과 여러 외부 조회(PostHog API, git log, GitHub Issue 검색)가 필요한 작업을 요청-응답 사이클 안에 넣을 이유가 없다. CI 잡은 시간 제약이 느슨하고 `gh`·`git`·임의 curl을 자유롭게 쓸 수 있어 분석에 더 적합하다.
+
+**멱등 설계**: `event_id`를 dispatch *이전에* 삽입한다(요구사항의 "event_id 선삽입"). insert가 unique violation(`23505`)이면 재전송이라는 뜻이지만, 이전 시도가 `dispatch_status='dispatched'`까지 갔는지를 다시 확인해 아직 `pending`이면 재시도한다 — 그렇지 않으면 GitHub API 호출이 실패한 첫 배달이 event_id를 "써버려서" 알림이 영구히 유실된다. ADR-007(Polar 웹훅)과 달리 여기서는 이벤트 로그 테이블을 둔다 — Polar는 `modified_at` 비교로 재전송을 자연히 no-op화할 수 있었지만, PostHog alert에는 그런 단조 비교 필드가 없고 애초에 "이 alert를 이미 CI에 위임했는가"라는 상태 자체를 어딘가에 남겨야 한다.
+
+**read-only 강제 방식**: CI 잡에는 `SUPABASE_SERVICE_ROLE_KEY`도, Supabase MCP 자격 증명도 전달하지 않는다. Supabase MCP는 OAuth 기반이라 헤드리스 실행에서 비대화형으로 인증할 수 없고, 설령 된다 해도 이 잡에 read-only를 "지키게" 하는 것보다 "지킬 필요가 없게" 만드는 편이 ADR-012와 같은 이유로 더 안전하다(자격 증명이 없으면 실수로도 못 건드린다). 대신 영향 범위 판단은 PostHog가 이미 집계해주는 distinct user 수·발생 빈도와 코드베이스 조회로 한다 — DB 직접 쿼리보다 정밀도는 떨어지지만 "1차 방어선"의 목적(사람을 깨울지 말지)에는 충분하다.
+
+**dedup**: 별도 상태 테이블 대신 GitHub Issue 검색(`gh issue list --search`)과 이슈 본문에 심은 HTML 주석 마커(`posthog:<issue|alert>:<id>`)로 한다. 근본 원인 단위 dedup 상태를 굳이 우리 DB에 복제하지 않아도 GitHub이 이미 진실 원천 역할을 한다.
+
+**경계 판정**: 노이즈/신호가 애매하면 신호로 기울이고 `confidence: low`를 명시한다. 이 판정의 실패 비용이 비대칭적이기 때문이다 — 잘못된 이슈 하나는 사람이 몇 초 안에 닫을 수 있지만, 놓친 실제 장애는 사용자가 먼저 발견하게 된다.
+
+**트레이드오프**: PostHog는 Polar(`@polar-sh/nextjs`)처럼 서명 검증을 내장 제공하지 않으므로, PostHog 웹훅 destination을 커스텀 HTTP 헤더(`X-Webhook-Secret`)와 커스텀 JSON 바디 템플릿으로 직접 구성해야 한다 — 이 계약(`event_id`/`alert_kind`/`issue_id`/`alert_id`/`title`/`url`/`occurred_at`)은 코드가 아니라 PostHog 대시보드 설정이라 배포 체크리스트에 남겨야 한다(ADR-009의 콘솔 지출 한도와 같은 성격). `GITHUB_DISPATCH_TOKEN`(fine-grained PAT)과 CI 쪽 `POSTHOG_PERSONAL_API_KEY`도 마찬가지로 수동 발급·등록이 필요하다.

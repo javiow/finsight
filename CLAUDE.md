@@ -59,6 +59,12 @@
 - DB는 조회만 한다. 구독 해지·환불·계정 변경처럼 쓰기가 필요한 요청은 실행하지 않고 에스컬레이션으로 사람에게 넘긴다.
 - 지금은 상시 입구(웹훅·챗봇 연동) 없이 사람이 직접 호출하는 로컬 one-shot이다. 설계 근거는 `docs/ADR.md` ADR-013 참고.
 
+## Oncall Alert Triage (prod alert 1차 방어선)
+- `POST /api/webhooks/posthog-alert`는 PostHog 에러 트래킹 웹훅(단건+급증 alert)을 받아 (1) `X-Webhook-Secret` 검증 (2) `oncall_alert_events`에 `event_id` 선삽입으로 멱등 확보 (3) GitHub `repository_dispatch`(`posthog-alert`)로 CI 위임까지만 한다. 노이즈/신호 판정은 하지 않는다 — 서버리스는 `claude -p`를 띄울 수 없기 때문이다.
+- 실제 판정·분석·에스컬레이션은 `.github/workflows/oncall-alert-triage.yml`이 깨우는 `.claude/skills/oncall-alert-triage`(헤드리스 Claude)가 한다. 노이즈(알려진 일시적·단발·봇)면 CI 로그에 근거만 남기고 종료하고, 신호(새 에러·여러 유저·급증·핵심 경로)면 무슨 에러/언제부터/몇 명/의심 원인(최근 커밋 overlap)/영향 범위/권장 액션을 담은 GitHub Issue를 연다. 경계 판정은 신호로 기울이되 `confidence: low`로 표기한다. 동일 근본 원인은 이슈 본문의 dedup 마커로 합쳐 코멘트만 남긴다.
+- 이 CI 잡에는 Supabase 자격 증명을 전달하지 않는다 — read-only를 규율이 아니라 "DB를 건드릴 수단 자체가 없음"으로 강제한다. prod 코드·DB 수정 경로는 없다.
+- `POSTHOG_ALERT_WEBHOOK_SECRET`(PostHog 웹훅 destination 커스텀 헤더와 동일 값)·`GITHUB_DISPATCH_TOKEN`(fine-grained PAT)·CI의 `POSTHOG_PERSONAL_API_KEY`는 코드가 아니라 수동 발급·등록이 필요하다 — 배포 체크리스트에 남길 것. 설계 근거는 `docs/ADR.md` ADR-014 참고.
+
 ## 명령어
 ```
 npm run dev      # 개발 서버
