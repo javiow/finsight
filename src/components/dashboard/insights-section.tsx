@@ -18,6 +18,17 @@ export function InsightsSection({
   const [insights, setInsights] = useState<InsightsResponse>(initialInsights);
 
   useEffect(() => {
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY ?? "",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ model: "claude-opus-5", messages: [] }),
+    });
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     fetch("/api/insights", { method: "POST" })
       .then((res) => {
